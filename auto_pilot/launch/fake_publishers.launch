@@ -1,0 +1,6 @@
+<launch>
+	<node pkg="auto_pilot" type="fake_gps_publisher.py" name="GPS_data_publishing_node" />
+	<node pkg="auto_pilot" type="fake_imu_quaternion_publisher.py" name="imu_quaternion_data_publishing_node" />
+	<node pkg="auto_pilot" type="fake_lidar_publisher.py" name="laser_scan_publisher" />
+	<node pkg="usb_cam" type="usb_cam_node" name="camera11" respawn="false" output="screen" />
+</launch>

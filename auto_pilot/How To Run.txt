@@ -1,0 +1,38 @@
+How To Run
+
+Do this before
+1) open arrow_tracking file , then open terminal in there and type make
+try to change Makefile in order for the command to work
+
+
+
+a)
+........................Fake publisher nodes : ........................
+rosrun auto_pilot fake_gps_publisher.py
+
+rosrun auto_pilot fake_lidar_publisher.py
+
+rosrun auto_pilot fake_imu_point_publisher.py
+
+rosrun auto_pilot fake_imu_point_publisher_2.py
+
+rosrun auto_pilot fake_imu_quaternion_publisher.py
+................................................................
+camera node:
+rosrun usb_cam usb_cam_node
+
+or
+
+b)
+
+arrow tracking node:
+rosrun auto_pilot darknet_video_ros.py
+
+ball tracking node:
+rosrun auto_pilot ball_node.py
+
+sensor data processing node:
+rosrun auto_pilot main_processing.py
+
+master string to drive commands generating node:
+rosrun auto_pilot str_to_motion.py
