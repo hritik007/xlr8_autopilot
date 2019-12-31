@@ -41,11 +41,11 @@ from nav_msgs.msg import Odometry
 pub = rospy.Publisher('master_string_topic', String, queue_size=15)
 
 #tuning parameters
-goal_lat  = 28.751385
-goal_lon  = 77.119103
+goal_lat  = 28.752179
+goal_lon  = 77.118316
 min_dist_to_stop=0.0 #rover will stop within 10m radius of the goal coordinates#get rid of this
-straight_allowance=2.0 #rover motion will be considered straight within -4 to -4 degrees
-rotation_allowance=9.0 #rover will start turning if required rotation is not in -20 to +20 degree
+straight_allowance=4.0 #rover motion will be considered straight within -4 to -4 degrees
+rotation_allowance=15.0 #rover will start turning if required rotation is not in -20 to +20 degree
 min_dist_for_camera_processing=3.0 #arrow and ball detection will start after this
 left_right_searching_threshold=45
 manual_mode=0
@@ -309,7 +309,7 @@ def callback_lidar(laser_scan_data):
     for r in range(40):#0 to 39 == 0 to 39 in range
         base_0_to_40[r]=math.cos(math.radians(r))*lidar_ranges_0_to_39[r]
 
-    normalized_ranges_minus_40_to_plus_39=np.concatenate((base_minus_40_to_minus_1,base_0_to_40 ), axis=0)
+    normalized_ranges_minus_40_to_plus_39=np.concatenate((base_minus_40_to_minus_1,base_0_to_40 ), axis=0)# equals to 1.08
     #####################################################
 
     ###################3temporary printing function (for debugging)############################
@@ -324,20 +324,54 @@ def callback_lidar(laser_scan_data):
     ############################################################
 
     ##########################10 degrees average taker###########################
+    """
     avreage_normalized_ranges=np.zeros(8)
     for i in range(8):
         for j in range(10):
             avreage_normalized_ranges[i]=avreage_normalized_ranges[i]+normalized_ranges_minus_40_to_plus_39[(i*10)+j]
     avreage_normalized_ranges=avreage_normalized_ranges/10
-    ##############################################################################3
-
-    ######################################################################
-    """
+    
     for i in range(8):
         print(avreage_normalized_ranges[i])
     print("")
     """
     #############################################################################
+    rover_height=0.41 #meters adjust this !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    max_searching_distance=1.0 #meters (adjust this)!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+    normalized_distances=np.zeros(80)#free distance to move
+    theta=math.atan(rover_height/max_searching_distance)#22.2936 degrees
+    for i in range(80):
+        normalized_distances[i]=(normalized_ranges_minus_40_to_plus_39[i]*math.cos(theta))
+        #print(str(normalized_distances[i])+"    "+str(normalized_ranges_minus_40_to_plus_39[i]))
+    #print("")
+
+    max_range_possible=((max_searching_distance**2)+(rover_height**2))**0.5
+    blocked_ranges=np.zeros(80)
+    obstacle_heights=np.zeros(80)
+
+    for i in range(80):
+        blocked_ranges[i]=max_range_possible-normalized_ranges_minus_40_to_plus_39[i]
+        obstacle_heights[i]=math.sin(theta)*blocked_ranges[i]
+        #print(str(i-40)+" degrees : "+str(obstacle_heights[i]))
+    #print("")
+    """
+    max_obstacle_height=0.1 #10 cm !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    blocked_distance=max_obstacle_height/math.tan(theta)
+    allowed_distance=1.0-blocked_distance
+    """
+    """
+    
+    for i in range(80):
+        obstacle_heights[i]=blocked_distance*math.tan(theta)
+        print("angle : "+str(i-40)+"   Obstacle height : "+str(obstacle_heights[i]))
+    print("")
+    """
+    """
+    for i in range(80):
+        if(normalized_distances[i]<allowed_distance):
+            print("obstacle detected at angle : "+str(i-40))
+    """
+    ##############################################################################
 
 def callback_ball(ball_data):
     global ball_area , ball_cooridinate , is_ball_detected
@@ -376,7 +410,7 @@ def listener():
     rospy.init_node('main_processing_node', anonymous=False)
     
     rospy.Subscriber("android/fix", NavSatFix , callback_gps)
-    #rospy.Subscriber("scan", LaserScan , callback_lidar)
+    rospy.Subscriber("scan", LaserScan , callback_lidar)
     rospy.Subscriber("ball_data_topic", Point , callback_ball)
     #rospy.Subscriber("arrow_direction_topic", Int16 , callback_arrow)
     rospy.Subscriber("android/imu", Imu , callback_imu)#it is new
