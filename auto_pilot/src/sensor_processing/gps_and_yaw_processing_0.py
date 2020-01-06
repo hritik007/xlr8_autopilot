@@ -48,21 +48,21 @@ def master_string_generator(minimum_distance, rover_rotating_angle,trigger,min_d
             if(rover_rotating_angle>=straight_allowance and trigger==1):
                 master_string="4170g"
             elif(rover_rotating_angle>straight_allowance and trigger==0):
-                master_string="1255g"
+                master_string="1200g"
             else:
                 trigger=0
                 #print("upper")
-                master_string="1255g"
+                master_string="1200g"
         else:
             if(rover_rotating_angle<=(-1*rotation_allowance)):
                 trigger=-1
             if(rover_rotating_angle<(-1*straight_allowance) and trigger==-1):
                 master_string="3170g"
             elif(rover_rotating_angle<=(-1*straight_allowance) and trigger==0):
-                master_string="1255g"
+                master_string="1200g"
             else:
                 trigger=0
                 #print("lower")
-                master_string="1255g"
+                master_string="1200g"
     return master_string,trigger
 
