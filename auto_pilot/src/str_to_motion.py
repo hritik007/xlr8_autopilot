@@ -7,19 +7,30 @@ drivex=drive_msg()
 def string_to_motor_command(data):
     print(data.data)
     movement = int(data.data[0])
+    
     pwm = int(data.data[1:4])
+    #pwm = 255
     drivex.ldir = bool(0)
     drivex.rdir = bool(0)
     if(movement != 0):
         drivex.lpwm = pwm 
         drivex.rpwm = pwm
-        if(movement > 1):
-            if(movement < 4):
-                drivex.ldir = 1
-        if(movement == 2):
-            drivex.rdir = 1
+		
+        if(movement == 1):
+            drivex.rdir = bool(0)
+            drivex.ldir = bool(0)
+
+        if(movement == 3):
+            drivex.rdir = bool(0)
+            drivex.ldir = bool(1)
+
         if(movement == 4):
-            drivex.rdir = 1
+            drivex.rdir = bool(1)
+            drivex.ldir = bool(0)
+
+        if(movement == 2):
+            drivex.rdir = bool(1)
+            drivex.ldir = bool(1)
 
         
     else:

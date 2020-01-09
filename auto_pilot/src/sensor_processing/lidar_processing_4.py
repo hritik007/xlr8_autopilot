@@ -76,7 +76,7 @@ def ranges_trimmer(lidar_ranges_360, is_obstacle_detected):
                 is_obstacle_detected=-1
             elif(right_weight>left_weight):
                 is_obstacle_detected=1
-    return left_weight,right_weight,is_obstacle_detected
+    return right_weight,left_weight,is_obstacle_detected
 
 def print_normalized_ranges(normalized_ranges_minus_40_to_plus_39):
     temp2=-40

@@ -41,16 +41,16 @@ from nav_msgs.msg import Odometry
 pub = rospy.Publisher('master_string_topic', String, queue_size=15)
 
 #tuning parameters
-goal_lat  = 28.751258
-goal_lon  = 77.119004
+goal_lat  = 28.7528307
+goal_lon  = 77.1171164
 min_dist_to_stop=0.0 #rover will stop within 10m radius of the goal coordinates#get rid of this
 straight_allowance=4.0 #rover motion will be considered straight within -4 to -4 degrees
 rotation_allowance=15.0 #rover will start turning if required rotation is not in -20 to +20 degree
-min_dist_for_camera_processing=5.5 #arrow and ball detection will start after this
-left_right_searching_threshold=45
-max_ground_pitch=17.5
-max_sky_pitch=17.5
-max_roll=15
+min_dist_for_camera_processing=500000000000000.5 #arrow and ball detection will start after this
+left_right_searching_threshold=70
+max_ground_pitch=8.5
+max_sky_pitch=8.5
+max_roll=8
 #note: code is optimized to add marker locations one by one
 
 #setting up global variables
@@ -102,12 +102,12 @@ rover_rotating_angle=0.0
 
 #affinity protocol variables
 #a) general rotation
-hide_for_affinity_protocol=0
 angle_where_roatation_started=0
 count_affinity=0
 search_count=0
 temp_rover_rotating_angle=0
 left_right_searching_operaion=1
+stay_in_affinity=0.0
 
 #b) ball
 ball_seen_first_time_flag=0
@@ -122,6 +122,15 @@ temp_rover_rotating_angle_arrow=0
 extreme_roll_detected=0.0
 extreme_pitch_detected=0.0
 
+
+initial_time=0.0
+final_time=0.0
+total_time=0.0
+initial_master_time=0.0
+final_master_time=0.0
+total_master_time=0.0
+
+
 def calculation_and_display_function():
     #globalizing every value found
     global master_string, master_string_old, goal_marker_distance , rover_rotating_angle , trigger, rover_lat,rover_lon,goal_lat,goal_lon
@@ -130,19 +139,21 @@ def calculation_and_display_function():
     global ball_seen_first_time_flag, left_right_searching_operaion , ball_alignment_already_started_before
     global arrow_seen_first_time_flag , arrow_rotation_already_started_before , angle_where_roatation_started_arrow , temp_rover_rotating_angle_arrow
     global yaw_360_increment , yaw_360 , yaw_360_old , left_right_searching_threshold
-    global hide_for_affinity_protocol, node_run_first_time
+    global node_run_first_time
     global is_obstacle_detected, is_obstacle_detected, count_lidar , turn_90_already_started_before , count_lidar
     global left_weight,right_weight
     global max_ground_pitch, max_sky_pitch , extreme_pitch_detected
     global extreme_roll_detected , max_roll
+    global initial_time , final_time , total_time, initial_master_time, final_master_time , total_master_time
+    global stay_in_affinity
     goal_marker_distance=gps_and_yaw_processing_0.calc_min_distance(rover_lat, rover_lon, goal_lat, goal_lon)
     rover_rotating_angle, Bearing =gps_and_yaw_processing_0.calc_rover_rotating_angle(rover_lat, rover_lon, goal_lat, goal_lon,yaw)
 
     #case 1 ) affinity circle protocol ............................................................................
-    if(goal_marker_distance <= min_dist_for_camera_processing and search_count<8 and node_run_first_time==0):#affinity circle
-        hide_for_affinity_protocol=1
+    if((goal_marker_distance <= min_dist_for_camera_processing and search_count<8 and node_run_first_time==0) or stay_in_affinity==1):#affinity circle
         print("[...Rover is being controlled by AFFINITY CIRCLE PPROTOCOL...]")
         yaw_360_increment=yaw_360-yaw_360_old
+
         if(yaw_360_increment>120):#+5 to -355
             yaw_360_increment=yaw_360_increment-360
         elif(yaw_360_increment<-120): #-355 to +5
@@ -160,8 +171,8 @@ def calculation_and_display_function():
             temp_rover_rotating_angle=0
             count_affinity=1
 
-        print("total rotation from centre   : "+str(temp_rover_rotating_angle))
-        print("angle where rotation started : "+str(angle_where_roatation_started))
+        print("total rotation from centre   : "+str(format(temp_rover_rotating_angle,'.2f')))
+        print("angle where rotation started : "+str(format(angle_where_roatation_started,'.2f')))
 
 
 
@@ -172,16 +183,70 @@ def calculation_and_display_function():
                 pub.publish(master_string)
                 delay_operations.delay_for_time("rotation_safety")
                 count_affinity=2
+                initial_time = time.time()
+                stay_in_affinity=1
 
-        if(count_affinity==2 and left_right_searching_operaion==1):#-70 degree to +70 degree (clockwise)
+        if(count_affinity==2 and left_right_searching_operaion==1):#forward 6 secs
+            master_string="1170a"
+            final_time=time.time()
+            total_time=(final_time-initial_time)
+
+            if(total_time>6):
+                master_string="0000a"
+                pub.publish(master_string)
+                delay_operations.delay_for_time("rotation_safety")
+                count_affinity=3
+                initial_time=time.time()
+
+        if(count_affinity==3 and left_right_searching_operaion==1):#backward 6 secs
+            master_string="2170a"
+
+            final_time=time.time()
+            total_time=(final_time-initial_time)
+
+            if(total_time>6):
+                master_string="0000a"
+                pub.publish(master_string)
+                delay_operations.delay_for_time("rotation_safety")
+                count_affinity=4
+                stay_in_affinity=0
+
+
+        if(count_affinity==4 and left_right_searching_operaion==1):#-70 degree to +70 degree (clockwise)
             master_string="41700"
             if((temp_rover_rotating_angle-angle_where_roatation_started)>left_right_searching_threshold):#if rover reaches +70 degree
                 master_string="00000"
                 pub.publish(master_string)
                 delay_operations.delay_for_time("rotation_safety")
-                count_affinity=3
+                count_affinity=5
+                initial_time = time.time()
+                stay_in_affinity=1
 
-        if(count_affinity==3 and left_right_searching_operaion==1):#+70 to 0 degree (anticlockwise)
+        if(count_affinity==5 and left_right_searching_operaion==1):#forward 6 secs
+            master_string="1170a"
+            final_time=time.time()
+            total_time=(final_time-initial_time)
+            if(total_time>6):
+                master_string="0000a"
+                pub.publish(master_string)
+                delay_operations.delay_for_time("rotation_safety")
+                count_affinity=6
+                initial_time=time.time()
+
+        if(count_affinity==6 and left_right_searching_operaion==1):#backward 6 secs
+            master_string="2170a"
+
+            final_time=time.time()
+            total_time=(final_time-initial_time)
+
+            if(total_time>6):
+                master_string="0000a"
+                pub.publish(master_string)
+                delay_operations.delay_for_time("rotation_safety")
+                count_affinity=7
+                stay_in_affinity=0
+
+        if(count_affinity==7 and left_right_searching_operaion==1):#+70 to 0 degree (anticlockwise)
             master_string="31700"
             if((temp_rover_rotating_angle-angle_where_roatation_started)<0):#if rover reaches the point where it started
                 master_string="00000"
@@ -294,7 +359,7 @@ def calculation_and_display_function():
 
         if(count_lidar==1 or turn_90_already_started_before!=0):
             if(is_obstacle_detected==-1 or turn_90_already_started_before==1):#if obstacle at left then only this will run
-                if(((temp_rover_rotating_angle-angle_where_roatation_started)>90) or (left_weight==0 and right_weight==0)):
+                if((temp_rover_rotating_angle-angle_where_roatation_started)>90):
                     master_string="0000l"
                     pub.publish(master_string)
                     delay_operations.delay_for_time("rotation_safety")
@@ -304,7 +369,7 @@ def calculation_and_display_function():
                 master_string="4170l"
 
             if(is_obstacle_detected==1 or turn_90_already_started_before==-1):#if obstacle at right then only this will run
-                if(((temp_rover_rotating_angle-angle_where_roatation_started)<-90) or (left_weight==0 and right_weight==0)):
+                if((temp_rover_rotating_angle-angle_where_roatation_started)<-90) :
                     master_string="0000l"
                     pub.publish(master_string)
                     delay_operations.delay_for_time("rotation_safety")
@@ -345,20 +410,27 @@ def calculation_and_display_function():
             delay_operations.delay_for_time("rotation_safety")
 
     #move below lines in listener later.
+
+    global final_master_time
+    final_master_time=time.time()
+    total_master_time=final_master_time-initial_master_time
     
     print("")
+    print("master time               : "+str(format((total_master_time/60),'.2f')+" minutes"))
+    print("stay in affinity          : "+str(stay_in_affinity))
     print("left weight : "+str(left_weight)+"  right weight : "+str(right_weight))
     print("obstacle detection status : "+str(is_obstacle_detected))
     print("exteme roll status        : "+str(extreme_roll_detected))
-    print("extreme pitch ststus      : "+str(extreme_pitch_detected))
-    print("gps bearing               : "+str(Bearing))
-    print("yaw (-180 to +180) format : "+str(yaw)+" degrees")
-    print("yaw (0 to 360) format     : " + str(yaw_360))
-    print("pitch                     : "+str(pitch))
-    print("roll                      : "+str(roll))
+    print("extreme pitch status      : "+str(extreme_pitch_detected))
+    print("arrow detection status    : "+str(arrow_direction))
+    print("gps bearing               : "+str(format(Bearing,'.2f'))+" degrees")
+    print("yaw (-180 to +180) format : "+str(format(yaw,'.2f'))+" degrees")
+    print("yaw (0 to 360) format     : " + str(format(yaw_360,'.2f'))+" degrees")
+    print("pitch                     : "+str(format(pitch,'.2f'))+" degrees")
+    print("roll                      : "+str(format(roll,'.2f'))+" degrees")
     print("goal  (lat , lon)         : ( "+str(goal_lat)+" , "+str(goal_lon)+" )")
     print("rover (lat , lon)         : ( "+str(rover_lat)+" , "+str(rover_lon)+" )")
-    print("rover rotation required   : "+str(rover_rotating_angle)+" degrees")
+    print("rover rotation required   : "+str(format(rover_rotating_angle,'.2f'))+" degrees")
     print("Distance to goal          : "+str(goal_marker_distance)+"  meters")
     print("master string             : "+str(master_string))
     print("...............................................................................")
@@ -433,7 +505,7 @@ def listener():
     rospy.Subscriber("android/fix", NavSatFix , callback_gps)
     #rospy.Subscriber("scan", LaserScan , callback_lidar)
     rospy.Subscriber("ball_data_topic", Point , callback_ball)
-    #rospy.Subscriber("arrow_direction_topic", Int16 , callback_arrow)
+    rospy.Subscriber("arrow_direction_topic", Int16 , callback_arrow)
     rospy.Subscriber("android/imu", Imu , callback_imu)#it is new
 
     #code at this line ------------ willwork only once ! wtf!!
@@ -441,4 +513,6 @@ def listener():
 
 if __name__ == '__main__':
     print("Activating Autopilot Mode")
+    global initial_master_time
+    initial_master_time=time.time()
     listener()

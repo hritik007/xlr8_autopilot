@@ -9,8 +9,8 @@ def delay_for_time(type_of_delay):
         print("*Rotation safety delay for 1 second*")
         time.sleep(1)
     if(type_of_delay=="marker_forward_fashion"):
-        print("*Moving forward for 1 seconds and for re-searching*")
-        time.sleep(1)
+        print("*Moving forward for 2 seconds and for re-searching*")
+        time.sleep(2)
     if(type_of_delay=="lidar_straight_move"):
         print("5 seconds straight (lidar case)")
         time.sleep(5)
